@@ -16,12 +16,19 @@ var logger = AllLog{
 }
 
 type Logger interface {
-	Debug(format string, args ...interface{})
-	Info(format string, args ...interface{})
-	Warn(format string, args ...interface{})
-	Errorf(format string, args ...interface{})
-	Success(format string, args ...interface{})
-	Notice(format string, args ...interface{})
+	Debug(format string)
+	Info(format string)
+	Warn(format string)
+	Error(format string)
+	Success(format string)
+	Notice(format string)
+
+	Debugf(format string, v ...any)
+	Infof(format string, v ...any)
+	Warnf(format string, v ...any)
+	Errorf(format string, v ...any)
+	Successf(format string, v ...any)
+	Noticef(format string, v ...any)
 }
 
 // SetOutput - Set output for logs
@@ -40,7 +47,7 @@ func (l *AllLog) SetType(t LoggerType) {
 		logger.tp = t
 		return
 	}
-	Warn("Logger type %v is invalid. Defaulting to INFO", t)
+	Warnf("Logger type %v is invalid. Defaulting to INFO", t)
 }
 
 // SetFlags - provide log.L* flags here.
@@ -48,45 +55,75 @@ func (l *AllLog) SetFlags(value int) {
 	logger.slog.SetFlags(value)
 }
 
-func Debug(format string, args ...interface{}) {
-	_ = CreatePerCall(LoggerDebug, format, args...)
+func Debug(format string) {
+	_ = CreatePerCall(LoggerDebug, format)
 }
 
-func Info(format string, args ...interface{}) {
-	_ = CreatePerCall(LoggerInfo, format, args...)
+func Info(format string) {
+	_ = CreatePerCall(LoggerInfo, format)
 }
 
-func Warn(format string, args ...interface{}) {
-	_ = CreatePerCall(LoggerWarn, format, args...)
+func Warn(format string) {
+	_ = CreatePerCall(LoggerWarn, format)
 }
 
-func Error(format string, args ...interface{}) {
-	_ = CreatePerCall(LoggerError, format, args...)
+func Error(format string) {
+	_ = CreatePerCall(LoggerError, format)
 }
 
-func Fatal(format string, args ...interface{}) {
-	result := CreatePerCall(LoggerFatal, format, args...)
-
+func Fatal(format string) {
+	result := CreatePerCall(LoggerFatal, format)
+	// Fatal if required
 	panic(result)
 }
 
-func Success(format string, args ...interface{}) {
-	_ = CreatePerCall(LoggerSuccess, format, args...)
+func Success(format string) {
+	_ = CreatePerCall(LoggerSuccess, format)
 }
 
-func Notice(format string, args ...interface{}) {
-	_ = CreatePerCall(LoggerNotice, format, args...)
+func Notice(format string) {
+	_ = CreatePerCall(LoggerNotice, format)
+}
+
+func Debugf(format string, v ...any) {
+	_ = CreatePerCall(LoggerDebug, format, v...)
+}
+
+func Infof(format string, v ...any) {
+	_ = CreatePerCall(LoggerInfo, format, v...)
+}
+
+func Warnf(format string, v ...any) {
+	_ = CreatePerCall(LoggerWarn, format, v...)
+}
+
+func Errorf(format string, v ...any) {
+	_ = CreatePerCall(LoggerError, format, v...)
+}
+
+func Fatalf(format string, v ...any) {
+	result := CreatePerCall(LoggerFatal, format, v...)
+	// Fatal if required
+	panic(result)
+}
+
+func Successf(format string, v ...any) {
+	_ = CreatePerCall(LoggerSuccess, format, v...)
+}
+
+func Noticef(format string, v ...any) {
+	_ = CreatePerCall(LoggerNotice, format, v...)
 }
 
 // General
 
-func CreatePerCall(tp LoggerType, format string, args ...interface{}) string {
+func CreatePerCall(tp LoggerType, format string, v ...any) string {
 	if logger.tp > tp {
 		return ""
 	}
 	var message string
-	if len(args) > 0 {
-		message = fmt.Sprintf(format, args...)
+	if len(v) > 0 {
+		message = fmt.Sprintf(format, v...)
 	} else {
 		message = format
 	}
@@ -98,5 +135,8 @@ func CreatePerCall(tp LoggerType, format string, args ...interface{}) string {
 
 	// output result
 	_ = logger.slog.Output(logger.depth, buffer.String())
+	if logger.flog != nil {
+		_ = logger.flog.Output(logger.depth, buffer.String())
+	}
 	return buffer.String()
 }

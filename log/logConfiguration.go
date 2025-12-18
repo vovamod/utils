@@ -67,7 +67,10 @@ func (lT LoggerType) IsValid() bool {
 
 // AllLog - represents logger and it's interface with params
 type AllLog struct {
-	slog   *log.Logger
+	// Standard logger instance
+	slog *log.Logger
+	// Additional logger instance (for files presumably)
+	flog   *log.Logger
 	depth  int        // for debug only
 	tp     LoggerType // log type
 	Logger            // Logger interface (used to call func-s)

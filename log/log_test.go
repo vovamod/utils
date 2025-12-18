@@ -15,7 +15,7 @@ func TestInfoOutputsMessage(t *testing.T) {
 	// allow all levels (assumes LoggerDebug is the lowest value)
 	new(AllLog).SetType(LoggerDebug)
 
-	Info("hello %s", "world")
+	Infof("hello %s", "world")
 
 	got := buf.String()
 	if !strings.Contains(got, "hello world") {
@@ -58,5 +58,5 @@ func TestFatalPanicsWithMessage(t *testing.T) {
 		}
 	}()
 
-	Fatal("fatal %s", "test")
+	Fatalf("fatal %s", "test")
 }
