@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 // logger - default logger instance
@@ -31,29 +32,37 @@ type Logger interface {
 	Noticef(format string, v ...any)
 }
 
+// Setup of logger
+
 // SetOutput - Set output for logs
-func (l *AllLog) SetOutput(output io.Writer) {
+func SetOutput(output io.Writer) {
 	logger.slog.SetOutput(output)
 }
 
 // SetDepth - Set depth to look for file. If 0 no filename will be listed in log
-func (l *AllLog) SetDepth(depth int) {
+func SetDepth(depth int) {
 	logger.depth = depth
 }
 
 // SetType - Set type of log to look for
-func (l *AllLog) SetType(t LoggerType) {
+func SetType(t LoggerType) {
 	if t.IsValid() {
 		logger.tp = t
 		return
 	}
-	Warnf("Logger type %v is invalid. Defaulting to INFO", t)
+	fmt.Printf("Logger type %v is invalid. Defaulting to INFO\n", t)
 }
 
 // SetFlags - provide log.L* flags here.
-func (l *AllLog) SetFlags(value int) {
+func SetFlags(value int) {
 	logger.slog.SetFlags(value)
 }
+
+func RegisterCustom(name string, colorCode string) {
+	customLevels[name] = colorCode + "[" + strings.ToUpper(name) + "]" + ColorReset
+}
+
+// Levels of logging
 
 func Debug(format string) {
 	_ = CreatePerCall(LoggerDebug, format)
@@ -113,6 +122,16 @@ func Successf(format string, v ...any) {
 
 func Noticef(format string, v ...any) {
 	_ = CreatePerCall(LoggerNotice, format, v...)
+}
+
+func Customf(levelName string, format string, v ...any) {
+	prefix, ok := customLevels[levelName]
+	if !ok {
+		prefix = ColorCyan + "[" + strings.ToUpper(levelName) + "]" + ColorReset
+	}
+
+	message := fmt.Sprintf(format, v...)
+	_ = logger.slog.Output(logger.depth, prefix+message)
 }
 
 // General

@@ -75,3 +75,6 @@ type AllLog struct {
 	tp     LoggerType // log type
 	Logger            // Logger interface (used to call func-s)
 }
+
+// customLevels - ability to add users some custom logging level of configuration
+var customLevels = make(map[string]string)
