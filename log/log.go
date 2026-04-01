@@ -30,22 +30,30 @@ type Logger interface {
 	Errorf(format string, v ...any)
 	Successf(format string, v ...any)
 	Noticef(format string, v ...any)
+
+	Streamf(format string, v ...any)
 }
 
 // Setup of logger
 
 // SetOutput - Set output for logs
 func SetOutput(output io.Writer) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
 	logger.slog.SetOutput(output)
 }
 
 // SetDepth - Set depth to look for file. If 0 no filename will be listed in log
 func SetDepth(depth int) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
 	logger.depth = depth
 }
 
 // SetType - Set type of log to look for
 func SetType(t LoggerType) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
 	if t.IsValid() {
 		logger.tp = t
 		return
@@ -55,11 +63,20 @@ func SetType(t LoggerType) {
 
 // SetFlags - provide log.L* flags here.
 func SetFlags(value int) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
 	logger.slog.SetFlags(value)
 }
 
-func RegisterCustom(name string, colorCode string) {
-	customLevels[name] = colorCode + "[" + strings.ToUpper(name) + "]" + ColorReset
+// RegisterCustom - register your log level. You can specify format: [MESSAGE] where MESSAGE must be %s so that the name of your custom level would be there
+func RegisterCustom(name string, colorCode string, format *string) {
+	var cm string
+	if format != nil {
+		cm = fmt.Sprintf(*format, name)
+	} else {
+		cm = colorCode + "[" + strings.ToUpper(name) + "]" + ColorReset
+	}
+	customLevels.Store(name, cm)
 }
 
 // Levels of logging
@@ -125,17 +142,24 @@ func Noticef(format string, v ...any) {
 }
 
 func Customf(levelName string, format string, v ...any) {
-	prefix, ok := customLevels[levelName]
-	if !ok {
-		prefix = ColorCyan + "[" + strings.ToUpper(levelName) + "]" + ColorReset
+	prefixVal, ok := customLevels.Load(levelName)
+	prefix := ColorCyan + "[" + strings.ToUpper(levelName) + "]" + ColorReset
+	if ok {
+		prefix = prefixVal.(string)
 	}
 
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
 	message := fmt.Sprintf(format, v...)
-	_ = logger.slog.Output(logger.depth, prefix+message)
+	logger.isStreaming = false
+	d := logger.depth
+	_ = logger.slog.Output(d, prefix+message)
 }
 
 // Streamf - an ability to stream message
 func Streamf(format string, v ...any) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
 	if logger.tp > LoggerInfo {
 		return
 	}
@@ -144,7 +168,6 @@ func Streamf(format string, v ...any) {
 	prefix := ColorBrightGreen + "[STREAM]" + ColorReset
 
 	if logger.isStreaming {
-		//fmt.Print("\r\033[K") // mv to 0 in line, clear the line
 		fmt.Print("\033[1A\033[2K") // mv1up & clear full
 	}
 
@@ -153,13 +176,43 @@ func Streamf(format string, v ...any) {
 	logger.isStreaming = true
 }
 
+// CustomStreamf - add a custom log level for streaming
+func CustomStreamf(levelName string, format string, v ...any) {
+	prefixVal, ok := customLevels.Load(levelName)
+	prefix := ColorCyan + "[" + strings.ToUpper(levelName) + "]" + ColorReset
+	if ok {
+		prefix = prefixVal.(string)
+	}
+
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
+
+	if logger.tp > LoggerInfo {
+		return
+	}
+	message := fmt.Sprintf(format, v...)
+
+	if logger.isStreaming {
+		fmt.Print("\033[1A\033[2K")
+	}
+
+	_ = logger.slog.Output(logger.depth, prefix+message)
+	logger.isStreaming = true
+}
+
 // General
 
 func CreatePerCall(tp LoggerType, format string, v ...any) string {
+	logger.mu.Lock()
 	if logger.tp > tp {
+		logger.mu.Unlock()
 		return ""
 	}
-	logger.isStreaming = false // reset the stream flag
+
+	logger.isStreaming = false
+	d := logger.depth
+	logger.mu.Unlock()
+
 	var message string
 	if len(v) > 0 {
 		message = fmt.Sprintf(format, v...)
@@ -168,14 +221,14 @@ func CreatePerCall(tp LoggerType, format string, v ...any) string {
 	}
 
 	var buffer bytes.Buffer
-	defer buffer.Reset() // reset after each use
 	buffer.WriteString(tp.toString())
-	_, _ = fmt.Fprint(&buffer, message) // err can be ignored!!!
+	_, _ = fmt.Fprint(&buffer, message)
 
-	// output result
-	_ = logger.slog.Output(logger.depth, buffer.String())
+	finalMsg := buffer.String()
+	_ = logger.slog.Output(d, finalMsg)
+
 	if logger.flog != nil {
-		_ = logger.flog.Output(logger.depth, buffer.String())
+		_ = logger.flog.Output(d, finalMsg)
 	}
-	return buffer.String()
+	return finalMsg
 }

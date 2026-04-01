@@ -2,6 +2,7 @@ package log
 
 import (
 	"log"
+	"sync"
 )
 
 // LoggerType - for validation
@@ -74,7 +75,8 @@ type AllLog struct {
 	depth       int        // for debug only
 	tp          LoggerType // log type
 	isStreaming bool
+	mu          sync.RWMutex // threading moment......
 }
 
 // customLevels - ability to add users some custom logging level of configuration
-var customLevels = make(map[string]string)
+var customLevels sync.Map
