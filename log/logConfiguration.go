@@ -70,10 +70,10 @@ type AllLog struct {
 	// Standard logger instance
 	slog *log.Logger
 	// Additional logger instance (for files presumably)
-	flog   *log.Logger
-	depth  int        // for debug only
-	tp     LoggerType // log type
-	Logger            // Logger interface (used to call func-s)
+	flog        *log.Logger
+	depth       int        // for debug only
+	tp          LoggerType // log type
+	isStreaming bool
 }
 
 // customLevels - ability to add users some custom logging level of configuration

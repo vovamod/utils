@@ -134,12 +134,32 @@ func Customf(levelName string, format string, v ...any) {
 	_ = logger.slog.Output(logger.depth, prefix+message)
 }
 
+// Streamf - an ability to stream message
+func Streamf(format string, v ...any) {
+	if logger.tp > LoggerInfo {
+		return
+	}
+
+	message := fmt.Sprintf(format, v...)
+	prefix := ColorBrightGreen + "[STREAM]" + ColorReset
+
+	if logger.isStreaming {
+		fmt.Print("\r\033[K") // mv to 0 in line, clear the line
+		//fmt.Print("\033[1A\033[2K") // mv1up & clear full
+	}
+
+	_ = logger.slog.Output(logger.depth, prefix+message)
+
+	logger.isStreaming = true
+}
+
 // General
 
 func CreatePerCall(tp LoggerType, format string, v ...any) string {
 	if logger.tp > tp {
 		return ""
 	}
+	logger.isStreaming = false // reset the stream flag
 	var message string
 	if len(v) > 0 {
 		message = fmt.Sprintf(format, v...)
