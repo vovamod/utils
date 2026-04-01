@@ -144,8 +144,8 @@ func Streamf(format string, v ...any) {
 	prefix := ColorBrightGreen + "[STREAM]" + ColorReset
 
 	if logger.isStreaming {
-		fmt.Print("\r\033[K") // mv to 0 in line, clear the line
-		//fmt.Print("\033[1A\033[2K") // mv1up & clear full
+		//fmt.Print("\r\033[K") // mv to 0 in line, clear the line
+		fmt.Print("\033[1A\033[2K") // mv1up & clear full
 	}
 
 	_ = logger.slog.Output(logger.depth, prefix+message)
