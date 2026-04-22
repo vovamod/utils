@@ -48,6 +48,9 @@ func SetDepth(depth int) {
 	logger.mu.Lock()
 	defer logger.mu.Unlock()
 	logger.depth = depth
+	if logger.slog.Flags() != log.Lshortfile|log.Llongfile {
+		Warn("log depth was enabled, but flags was not set. Please set flags.")
+	}
 }
 
 // SetType - Set type of log to look for
@@ -210,7 +213,6 @@ func CreatePerCall(tp LoggerType, format string, v ...any) string {
 	}
 
 	logger.isStreaming = false
-	d := logger.depth
 	logger.mu.Unlock()
 
 	var message string
@@ -225,10 +227,10 @@ func CreatePerCall(tp LoggerType, format string, v ...any) string {
 	_, _ = fmt.Fprint(&buffer, message)
 
 	finalMsg := buffer.String()
-	_ = logger.slog.Output(d, finalMsg)
+	_ = logger.slog.Output(logger.depth, finalMsg)
 
 	if logger.flog != nil {
-		_ = logger.flog.Output(d, finalMsg)
+		_ = logger.flog.Output(logger.depth, finalMsg)
 	}
 	return finalMsg
 }
