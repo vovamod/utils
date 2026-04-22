@@ -48,9 +48,6 @@ func SetDepth(depth int) {
 	logger.mu.Lock()
 	defer logger.mu.Unlock()
 	logger.depth = depth
-	if logger.slog.Flags() != log.Lshortfile|log.Llongfile {
-		Warn("log depth was enabled, but flags was not set. Please set flags.")
-	}
 }
 
 // SetType - Set type of log to look for
