@@ -265,22 +265,33 @@ func (e *Entry) formatFields() string {
 	return " " + strings.Join(parts, " ")
 }
 
-func (e *Entry) Infof(format string, v ...any) {
+func (e *Entry) log(tp LoggerType, format string, v ...any) {
+	if logger.tp > tp {
+		return
+	}
 	msg := fmt.Sprintf(format, v...)
-	Info(msg + e.formatFields())
-}
-
-func (e *Entry) Errorf(format string, v ...any) {
-	msg := fmt.Sprintf(format, v...)
-	Error(msg + e.formatFields())
-}
-
-func (e *Entry) Debugf(format string, v ...any) {
-	msg := fmt.Sprintf(format, v...)
-	Debug(msg + e.formatFields())
+	fullMsg := msg + e.formatFields()
+	_ = CreatePerCall(tp, fullMsg)
 }
 
 func (e *Entry) WithField(key string, value any) *Entry {
-	e.fields[key] = value
-	return e
+	return e.WithFields(Fields{key: value})
 }
+
+func (e *Entry) WithFields(f Fields) *Entry {
+	newFields := make(Fields, len(e.fields)+len(f))
+
+	for k, v := range e.fields {
+		newFields[k] = v
+	}
+	for k, v := range f {
+		newFields[k] = v
+	}
+	return &Entry{fields: newFields}
+}
+
+func (e *Entry) Infof(format string, v ...any)    { e.log(LoggerInfo, format, v...) }
+func (e *Entry) Errorf(format string, v ...any)   { e.log(LoggerError, format, v...) }
+func (e *Entry) Debugf(format string, v ...any)   { e.log(LoggerDebug, format, v...) }
+func (e *Entry) Warnf(format string, v ...any)    { e.log(LoggerWarn, format, v...) }
+func (e *Entry) Successf(format string, v ...any) { e.log(LoggerSuccess, format, v...) }
