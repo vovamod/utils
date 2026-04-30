@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -230,4 +231,56 @@ func CreatePerCall(tp LoggerType, format string, v ...any) string {
 		_ = logger.flog.Output(logger.depth, finalMsg)
 	}
 	return finalMsg
+}
+
+// TESTING
+type Fields map[string]any
+type Entry struct {
+	fields Fields
+}
+
+func WithField(key string, value any) *Entry {
+	return &Entry{fields: Fields{key: value}}
+}
+
+func WithFields(f Fields) *Entry {
+	return &Entry{fields: f}
+}
+
+func (e *Entry) formatFields() string {
+	if len(e.fields) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(e.fields))
+	for k := range e.fields {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys) // Keep logs consistent
+
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s%s%s=%v", ColorCyan, k, ColorReset, e.fields[k]))
+	}
+	return " " + strings.Join(parts, " ")
+}
+
+func (e *Entry) Infof(format string, v ...any) {
+	msg := fmt.Sprintf(format, v...)
+	Info(msg + e.formatFields())
+}
+
+func (e *Entry) Errorf(format string, v ...any) {
+	msg := fmt.Sprintf(format, v...)
+	Error(msg + e.formatFields())
+}
+
+func (e *Entry) Debugf(format string, v ...any) {
+	msg := fmt.Sprintf(format, v...)
+	Debug(msg + e.formatFields())
+}
+
+func (e *Entry) WithField(key string, value any) *Entry {
+	e.fields[key] = value
+	return e
 }
