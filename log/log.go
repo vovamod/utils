@@ -1,7 +1,6 @@
 package log
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -10,63 +9,49 @@ import (
 	"strings"
 )
 
-// logger - default logger instance
-var logger = AllLog{
-	slog:  log.New(os.Stdout, "", log.Ldate|log.Lmicroseconds),
-	tp:    LoggerInfo,
-	depth: 0, // if 0 - shows nothing, only shows on debug
+// New instance of AllLog
+func New(out io.Writer, tp LoggerType) *AllLog {
+	return &AllLog{
+		slog:   log.New(out, "", log.Ldate|log.Lmicroseconds),
+		tp:     tp,
+		depth:  0,
+		exitFn: os.Exit,
+	}
 }
-
-type Logger interface {
-	Debug(format string)
-	Info(format string)
-	Warn(format string)
-	Error(format string)
-	Success(format string)
-	Notice(format string)
-
-	Debugf(format string, v ...any)
-	Infof(format string, v ...any)
-	Warnf(format string, v ...any)
-	Errorf(format string, v ...any)
-	Successf(format string, v ...any)
-	Noticef(format string, v ...any)
-
-	Streamf(format string, v ...any)
-}
-
-// Setup of logger
 
 // SetOutput - Set output for logs
-func SetOutput(output io.Writer) {
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
-	logger.slog.SetOutput(output)
+func (l *AllLog) SetOutput(output io.Writer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.slog.SetOutput(output)
 }
 
 // SetDepth - Set depth to look for file. If 0 no filename will be listed in log
-func SetDepth(depth int) {
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
-	logger.depth = depth
+func (l *AllLog) SetDepth(depth int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.slog.Flags() != log.Lshortfile && l.slog.Flags() != log.Llongfile {
+		fmt.Print("WARNING. YOU DO NOT HAVE A FLAG SPECIFIED IN slog INSTANCE THAT ENABLES depth SUPPORT.")
+	}
+	l.depth = depth
 }
 
 // SetType - Set type of log to look for
-func SetType(t LoggerType) {
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
+func (l *AllLog) SetType(t LoggerType) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if t.IsValid() {
-		logger.tp = t
+		l.tp = t
 		return
 	}
 	fmt.Printf("Logger type %v is invalid. Defaulting to INFO\n", t)
 }
 
 // SetFlags - provide log.L* flags here.
-func SetFlags(value int) {
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
-	logger.slog.SetFlags(value)
+func (l *AllLog) SetFlags(value int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.slog.SetFlags(value)
 }
 
 // RegisterCustom - register your log level. You can specify format: [MESSAGE] where MESSAGE must be %s so that the name of your custom level would be there
@@ -82,169 +67,171 @@ func RegisterCustom(name string, colorCode string, format *string) {
 
 // Levels of logging
 
-func Debug(format string) {
-	_ = CreatePerCall(LoggerDebug, format)
+func (l *AllLog) Debug(v ...any) {
+	_ = l.createPerCall(LoggerDebug, "", v)
 }
 
-func Info(format string) {
-	_ = CreatePerCall(LoggerInfo, format)
+func (l *AllLog) Info(v ...any) {
+	_ = l.createPerCall(LoggerInfo, "", v)
 }
 
-func Warn(format string) {
-	_ = CreatePerCall(LoggerWarn, format)
+func (l *AllLog) Warn(v ...any) {
+	_ = l.createPerCall(LoggerWarn, "", v)
 }
 
-func Error(format string) {
-	_ = CreatePerCall(LoggerError, format)
+func (l *AllLog) Error(v ...any) {
+	_ = l.createPerCall(LoggerError, "", v)
 }
 
-func Fatal(format string) {
-	result := CreatePerCall(LoggerFatal, format)
-	// Fatal if required
-	panic(result)
+func (l *AllLog) Fatal(v ...any) {
+	_ = l.createPerCall(LoggerFatal, "", v)
+	l.exitFn(1)
 }
 
-func Success(format string) {
-	_ = CreatePerCall(LoggerSuccess, format)
+func (l *AllLog) Success(v ...any) {
+	_ = l.createPerCall(LoggerSuccess, "", v)
 }
 
-func Notice(format string) {
-	_ = CreatePerCall(LoggerNotice, format)
+func (l *AllLog) Notice(v ...any) {
+	_ = l.createPerCall(LoggerNotice, "", v)
 }
 
-func Debugf(format string, v ...any) {
-	_ = CreatePerCall(LoggerDebug, format, v...)
+func (l *AllLog) Debugf(format string, v ...any) {
+	_ = l.createPerCall(LoggerDebug, format, v)
 }
 
-func Infof(format string, v ...any) {
-	_ = CreatePerCall(LoggerInfo, format, v...)
+func (l *AllLog) Infof(format string, v ...any) {
+	_ = l.createPerCall(LoggerInfo, format, v)
 }
 
-func Warnf(format string, v ...any) {
-	_ = CreatePerCall(LoggerWarn, format, v...)
+func (l *AllLog) Warnf(format string, v ...any) {
+	_ = l.createPerCall(LoggerWarn, format, v)
 }
 
-func Errorf(format string, v ...any) {
-	_ = CreatePerCall(LoggerError, format, v...)
+func (l *AllLog) Errorf(format string, v ...any) {
+	_ = l.createPerCall(LoggerError, format, v)
 }
 
-func Fatalf(format string, v ...any) {
-	result := CreatePerCall(LoggerFatal, format, v...)
-	// Fatal if required
-	panic(result)
+func (l *AllLog) Fatalf(format string, v ...any) {
+	_ = l.createPerCall(LoggerFatal, format, v)
+	l.exitFn(1)
 }
 
-func Successf(format string, v ...any) {
-	_ = CreatePerCall(LoggerSuccess, format, v...)
+func (l *AllLog) Successf(format string, v ...any) {
+	_ = l.createPerCall(LoggerSuccess, format, v)
 }
 
-func Noticef(format string, v ...any) {
-	_ = CreatePerCall(LoggerNotice, format, v...)
+func (l *AllLog) Noticef(format string, v ...any) {
+	_ = l.createPerCall(LoggerNotice, format, v)
 }
 
-func Customf(levelName string, format string, v ...any) {
+func (l *AllLog) Customf(levelName string, format string, v ...any) {
 	prefixVal, ok := customLevels.Load(levelName)
 	prefix := ColorCyan + "[" + strings.ToUpper(levelName) + "]" + ColorReset
 	if ok {
 		prefix = prefixVal.(string)
 	}
 
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	message := fmt.Sprintf(format, v...)
-	logger.isStreaming = false
-	d := logger.depth
-	_ = logger.slog.Output(d, prefix+message)
+	l.isStreaming = false
+	d := l.depth
+	_ = l.slog.Output(d, prefix+message)
 }
 
 // Streamf - an ability to stream message
-func Streamf(format string, v ...any) {
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
-	if logger.tp > LoggerInfo {
+func (l *AllLog) Streamf(format string, v ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.tp > LoggerInfo {
 		return
 	}
 
 	message := fmt.Sprintf(format, v...)
 	prefix := ColorBrightGreen + "[STREAM]" + ColorReset
 
-	if logger.isStreaming {
+	if l.isStreaming {
 		fmt.Print("\033[1A\033[2K") // mv1up & clear full
 	}
 
-	_ = logger.slog.Output(logger.depth, prefix+message)
+	_ = l.slog.Output(l.depth, prefix+message)
 
-	logger.isStreaming = true
+	l.isStreaming = true
 }
 
 // CustomStreamf - add a custom log level for streaming
-func CustomStreamf(levelName string, format string, v ...any) {
+func (l *AllLog) CustomStreamf(levelName string, format string, v ...any) {
 	prefixVal, ok := customLevels.Load(levelName)
 	prefix := ColorCyan + "[" + strings.ToUpper(levelName) + "]" + ColorReset
 	if ok {
 		prefix = prefixVal.(string)
 	}
 
-	logger.mu.Lock()
-	defer logger.mu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	if logger.tp > LoggerInfo {
+	if l.tp > LoggerInfo {
 		return
 	}
 	message := fmt.Sprintf(format, v...)
 
-	if logger.isStreaming {
+	if l.isStreaming {
 		fmt.Print("\033[1A\033[2K")
 	}
 
-	_ = logger.slog.Output(logger.depth, prefix+message)
-	logger.isStreaming = true
+	_ = l.slog.Output(l.depth, prefix+message)
+	l.isStreaming = true
 }
 
 // General
 
-func CreatePerCall(tp LoggerType, format string, v ...any) string {
-	logger.mu.Lock()
-	if logger.tp > tp {
-		logger.mu.Unlock()
+func (l *AllLog) createPerCall(tp LoggerType, format string, v []any) string {
+	l.mu.Lock()
+	if tp < l.tp {
+		l.mu.Unlock()
 		return ""
 	}
-
-	logger.isStreaming = false
-	logger.mu.Unlock()
+	l.isStreaming = false
+	l.mu.Unlock()
 
 	var message string
-	if len(v) > 0 {
+	if len(v) > 0 && len(message) > 0 {
 		message = fmt.Sprintf(format, v...)
 	} else {
-		message = format
+		message = fmt.Sprint(v...)
 	}
 
-	var buffer bytes.Buffer
-	buffer.WriteString(tp.toString())
-	_, _ = fmt.Fprint(&buffer, message)
+	finalMsg := tp.toString() + message
 
-	finalMsg := buffer.String()
-	_ = logger.slog.Output(logger.depth, finalMsg)
+	_ = l.slog.Output(l.depth, finalMsg)
 
-	if logger.flog != nil {
-		_ = logger.flog.Output(logger.depth, finalMsg)
+	if l.flog != nil {
+		_ = l.flog.Output(l.depth, finalMsg)
 	}
+
 	return finalMsg
 }
 
 // TESTING
 type Fields map[string]any
 type Entry struct {
+	logger *AllLog
 	fields Fields
 }
 
-func WithField(key string, value any) *Entry {
-	return &Entry{fields: Fields{key: value}}
+func (l *AllLog) WithField(key string, value any) *Entry {
+	return &Entry{
+		logger: l,
+		fields: Fields{key: value},
+	}
 }
 
-func WithFields(f Fields) *Entry {
-	return &Entry{fields: f}
+func (l *AllLog) WithFields(f Fields) *Entry {
+	return &Entry{
+		logger: l,
+		fields: f,
+	}
 }
 
 func (e *Entry) formatFields() string {
@@ -266,12 +253,20 @@ func (e *Entry) formatFields() string {
 }
 
 func (e *Entry) log(tp LoggerType, format string, v ...any) {
-	if logger.tp > tp {
+	if e.logger.tp > tp {
 		return
 	}
-	msg := fmt.Sprintf(format, v...)
-	fullMsg := msg + e.formatFields()
-	_ = CreatePerCall(tp, fullMsg)
+
+	var msg string
+	if format == "" {
+		msg = fmt.Sprint(v...)
+	} else {
+		msg = fmt.Sprintf(format, v...)
+	}
+
+	msg += e.formatFields()
+
+	_ = e.logger.slog.Output(e.logger.depth, tp.toString()+msg)
 }
 
 func (e *Entry) WithField(key string, value any) *Entry {
@@ -287,9 +282,18 @@ func (e *Entry) WithFields(f Fields) *Entry {
 	for k, v := range f {
 		newFields[k] = v
 	}
-	return &Entry{fields: newFields}
+
+	return &Entry{
+		logger: e.logger,
+		fields: newFields,
+	}
 }
 
+func (e *Entry) Info(v ...any)                    { e.log(LoggerInfo, "", v...) }
+func (e *Entry) Error(v ...any)                   { e.log(LoggerError, "", v...) }
+func (e *Entry) Debug(v ...any)                   { e.log(LoggerDebug, "", v...) }
+func (e *Entry) Warn(v ...any)                    { e.log(LoggerWarn, "", v...) }
+func (e *Entry) Success(v ...any)                 { e.log(LoggerSuccess, "", v...) }
 func (e *Entry) Infof(format string, v ...any)    { e.log(LoggerInfo, format, v...) }
 func (e *Entry) Errorf(format string, v ...any)   { e.log(LoggerError, format, v...) }
 func (e *Entry) Debugf(format string, v ...any)   { e.log(LoggerDebug, format, v...) }

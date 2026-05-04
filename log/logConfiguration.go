@@ -75,6 +75,7 @@ type AllLog struct {
 	depth       int        // for debug only
 	tp          LoggerType // log type
 	isStreaming bool
+	exitFn      func(int)
 	mu          sync.RWMutex // threading moment......
 }
 
