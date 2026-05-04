@@ -7,7 +7,47 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 )
+
+var (
+	std      *AllLog = New(os.Stdout, LoggerInfo)
+	globalMu sync.RWMutex
+)
+
+func Default() *AllLog {
+	globalMu.RLock()
+	defer globalMu.RUnlock()
+	return std
+}
+func Replace(l *AllLog) {
+	globalMu.Lock()
+	std = l
+	globalMu.Unlock()
+}
+func SetOutput(out io.Writer) { std.SetOutput(out) }
+func SetType(t LoggerType)    { std.SetType(t) }
+func SetFlags(f int)          { std.SetFlags(f) }
+func SetDepth(d int)          { std.SetDepth(d) }
+
+func Debug(v ...any)   { std.Debug(v...) }
+func Info(v ...any)    { std.Info(v...) }
+func Warn(v ...any)    { std.Warn(v...) }
+func Error(v ...any)   { std.Error(v...) }
+func Fatal(v ...any)   { std.Fatal(v...) }
+func Success(v ...any) { std.Success(v...) }
+func Notice(v ...any)  { std.Notice(v...) }
+
+func Debugf(f string, v ...any)   { std.Debugf(f, v...) }
+func Infof(f string, v ...any)    { std.Infof(f, v...) }
+func Warnf(f string, v ...any)    { std.Warnf(f, v...) }
+func Errorf(f string, v ...any)   { std.Errorf(f, v...) }
+func Fatalf(f string, v ...any)   { std.Fatalf(f, v...) }
+func Successf(f string, v ...any) { std.Successf(f, v...) }
+func Noticef(f string, v ...any)  { std.Noticef(f, v...) }
+
+func WithField(k string, v any) *Entry { return std.WithField(k, v) }
+func WithFields(f Fields) *Entry       { return std.WithFields(f) }
 
 // New instance of AllLog
 func New(out io.Writer, tp LoggerType) *AllLog {
@@ -196,7 +236,7 @@ func (l *AllLog) createPerCall(tp LoggerType, format string, v []any) string {
 	l.mu.Unlock()
 
 	var message string
-	if len(v) > 0 && len(message) > 0 {
+	if len(v) > 0 && len(format) > 0 {
 		message = fmt.Sprintf(format, v...)
 	} else {
 		message = fmt.Sprint(v...)

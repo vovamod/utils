@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"log"
+	"os"
 	"strings"
 	"testing"
 )
@@ -143,4 +144,96 @@ func TestEntryIsIndependent(t *testing.T) {
 	if !strings.Contains(out, "first") || !strings.Contains(out, "second") {
 		t.Fatalf("expected both logs, got: %s", out)
 	}
+}
+
+// Global logger instance
+func TestGlobalLogger(t *testing.T) {
+	buf := &bytes.Buffer{}
+	customLog := New(buf, LoggerDebug)
+	Replace(customLog)
+
+	t.Run("Global Standard Logging", func(t *testing.T) {
+		buf.Reset()
+		Info("global info message")
+
+		output := buf.String()
+		if !strings.Contains(output, "global info message") {
+			t.Errorf("Expected output to contain message, got: %q", output)
+		}
+	})
+
+	t.Run("Global Formatted Logging", func(t *testing.T) {
+		buf.Reset()
+		Successf("task %d completed", 1)
+
+		output := buf.String()
+		if !strings.Contains(output, "task 1 completed") {
+			t.Errorf("Expected formatted output, got: %q", output)
+		}
+	})
+
+	t.Run("Global Level Filtering", func(t *testing.T) {
+		buf.Reset()
+		SetType(LoggerError)
+
+		Debug("this should not appear")
+
+		if buf.Len() > 0 {
+			t.Errorf("Expected no output for Debug at Error level, got: %q", buf.String())
+		}
+
+		SetType(LoggerDebug)
+	})
+}
+
+func TestGlobalStructuredLogging(t *testing.T) {
+	buf := &bytes.Buffer{}
+	Replace(New(buf, LoggerDebug))
+
+	t.Run("Global WithField", func(t *testing.T) {
+		buf.Reset()
+		WithField("component", "api").Info("request received")
+
+		output := buf.String()
+		if !strings.Contains(output, "component") || !strings.Contains(output, "api") || !strings.Contains(output, "request received") {
+			t.Errorf("Structured log missing field or message. Got: %q", output)
+		}
+	})
+
+	t.Run("Global WithFields", func(t *testing.T) {
+		buf.Reset()
+		WithFields(Fields{
+			"user_id": 42,
+			"role":    "admin",
+		}).Warn("unauthorized access attempt")
+
+		output := buf.String()
+		keys := []string{"user_id", "42", "role", "admin", "unauthorized access attempt"}
+		for _, key := range keys {
+			if !strings.Contains(output, key) {
+				t.Errorf("Expected output to contain %s, but it didn't. Got: %q", key, output)
+			}
+		}
+	})
+}
+
+func TestGlobalConcurrency(t *testing.T) {
+	done := make(chan bool)
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			Info("logging...")
+		}
+		done <- true
+	}()
+
+	go func() {
+		for i := 0; i < 10; i++ {
+			Replace(New(os.Stdout, LoggerInfo))
+		}
+		done <- true
+	}()
+
+	<-done
+	<-done
 }
