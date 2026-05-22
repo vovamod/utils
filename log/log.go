@@ -38,13 +38,16 @@ func Fatal(v ...any)   { std.Fatal(v...) }
 func Success(v ...any) { std.Success(v...) }
 func Notice(v ...any)  { std.Notice(v...) }
 
-func Debugf(f string, v ...any)   { std.Debugf(f, v...) }
-func Infof(f string, v ...any)    { std.Infof(f, v...) }
-func Warnf(f string, v ...any)    { std.Warnf(f, v...) }
-func Errorf(f string, v ...any)   { std.Errorf(f, v...) }
-func Fatalf(f string, v ...any)   { std.Fatalf(f, v...) }
-func Successf(f string, v ...any) { std.Successf(f, v...) }
-func Noticef(f string, v ...any)  { std.Noticef(f, v...) }
+func Debugf(f string, v ...any)                          { std.Debugf(f, v...) }
+func Infof(f string, v ...any)                           { std.Infof(f, v...) }
+func Warnf(f string, v ...any)                           { std.Warnf(f, v...) }
+func Errorf(f string, v ...any)                          { std.Errorf(f, v...) }
+func Fatalf(f string, v ...any)                          { std.Fatalf(f, v...) }
+func Successf(f string, v ...any)                        { std.Successf(f, v...) }
+func Noticef(f string, v ...any)                         { std.Noticef(f, v...) }
+func Customf(levelName string, f string, v ...any)       { std.Customf(levelName, f, v...) }
+func Streamf(f string, v ...any)                         { std.Streamf(f, v...) }
+func CustomStreamf(levelName string, f string, v ...any) { std.CustomStreamf(levelName, f, v...) }
 
 func WithField(k string, v any) *Entry { return std.WithField(k, v) }
 func WithFields(f Fields) *Entry       { return std.WithFields(f) }
