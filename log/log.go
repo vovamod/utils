@@ -25,10 +25,10 @@ func Replace(l *AllLog) {
 	std = l
 	globalMu.Unlock()
 }
-func SetOutput(out io.Writer) { std.SetOutput(out) }
-func SetType(t LoggerType)    { std.SetType(t) }
-func SetFlags(f int)          { std.SetFlags(f) }
-func SetDepth(d int)          { std.SetDepth(d) }
+func SetOutput(out io.Writer, writerType string) { std.SetOutput(out, writerType) }
+func SetType(t LoggerType)                       { std.SetType(t) }
+func SetFlags(f int)                             { std.SetFlags(f) }
+func SetDepth(d int)                             { std.SetDepth(d) }
 
 func Debug(v ...any)   { std.Debug(v...) }
 func Info(v ...any)    { std.Info(v...) }
@@ -63,18 +63,24 @@ func New(out io.Writer, tp LoggerType) *AllLog {
 }
 
 // SetOutput - Set output for logs
-func (l *AllLog) SetOutput(output io.Writer) {
+// default writer is: default; File writer is flog
+func (l *AllLog) SetOutput(output io.Writer, writer string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.slog.SetOutput(output)
+	if writer == "" || writer == "default" {
+		l.slog.SetOutput(output)
+		return
+	}
+	l.flog.SetOutput(output)
 }
 
 // SetDepth - Set depth to look for file. If 0 no filename will be listed in log
 func (l *AllLog) SetDepth(depth int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.slog.Flags() != log.Lshortfile && l.slog.Flags() != log.Llongfile {
-		fmt.Print("WARNING. YOU DO NOT HAVE A FLAG SPECIFIED IN slog INSTANCE THAT ENABLES depth SUPPORT.")
+	mask := log.Lshortfile | log.Llongfile
+	if l.slog.Flags()&mask == 0 {
+		fmt.Print("\nWARNING. YOU DO NOT HAVE A FLAG SPECIFIED IN slog INSTANCE THAT ENABLES depth SUPPORT.\n")
 	}
 	l.depth = depth
 }
