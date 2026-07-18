@@ -5,9 +5,14 @@
 Place your base HTML files and JSON object files in the same directory:
 ```text
 templates/
-├── layouts.html
-├── components.json
-└── email.html
+├── en/
+├── ── layouts.html
+├── ── components.json
+└── ── email.html
+├── uk/
+├── ── layouts.html
+├── ── components.json
+└── ── email.html
 ```
 
 **Object File Format**
