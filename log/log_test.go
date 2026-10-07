@@ -237,3 +237,71 @@ func TestGlobalConcurrency(t *testing.T) {
 	<-done
 	<-done
 }
+
+func TestLogfmtFormat(t *testing.T) {
+	l, buf := newTestLogger(LoggerDebug)
+	l.SetFormat(FormatLogfmt)
+
+	l.Errorf("db: %s", "refused\nretry")
+	l.WithField("user", 1).WithField("note", "a b").Warn("fields")
+	l.Success("done")
+
+	lines := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+	want := []string{
+		`level=error msg="db: refused\nretry"`,
+		`level=warn msg=fields note="a b" user=1`,
+		`level=info msg=done`,
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("expected %d lines, got %q", len(want), lines)
+	}
+	for i := range want {
+		if lines[i] != want[i] {
+			t.Fatalf("line %d: expected %q, got %q", i, want[i], lines[i])
+		}
+	}
+}
+
+func TestLogfmtFile(t *testing.T) {
+	l, buf := newTestLogger(LoggerInfo)
+	l.SetFormat(FormatLogfmt)
+	l.SetDepth(3)
+
+	l.Info("where")
+
+	if !strings.HasPrefix(buf.String(), "level=info file=log_test.go:") {
+		t.Fatalf("expected caller file, got: %s", buf.String())
+	}
+}
+
+func TestPlainFormatHasNoColors(t *testing.T) {
+	l, buf := newTestLogger(LoggerInfo)
+	l.SetFormat(FormatPlain)
+
+	l.WithField("k", "v").Info("plain")
+	l.Customf("audit", "custom")
+
+	out := buf.String()
+	if strings.Contains(out, "\033[") {
+		t.Fatalf("expected no ANSI codes, got: %q", out)
+	}
+	if !strings.Contains(out, "[INFO] plain k=v") || !strings.Contains(out, "[AUDIT] custom") {
+		t.Fatalf("unexpected plain output: %q", out)
+	}
+}
+
+func TestLogfmtValue(t *testing.T) {
+	cases := map[any]string{
+		"":        `""`,
+		"simple":  "simple",
+		"a b":     `"a b"`,
+		"k=v":     `"k=v"`,
+		`say "x"`: `"say \"x\""`,
+		42:        "42",
+	}
+	for in, want := range cases {
+		if got := LogfmtValue(in); got != want {
+			t.Fatalf("LogfmtValue(%v): expected %s, got %s", in, want, got)
+		}
+	}
+}

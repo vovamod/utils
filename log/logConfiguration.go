@@ -40,6 +40,18 @@ const (
 	LoggerNotice
 )
 
+type Format int
+
+const (
+	FormatColor Format = iota
+	FormatPlain
+	FormatLogfmt
+)
+
+var lnames = []string{"debug", "info", "warn", "error", "fatal", "info", "info"}
+
+var pstr = []string{"[DEBUG] ", "[INFO] ", "[WARN] ", "[ERROR] ", "[FATAL] ", "[SUCCESS] ", "[NOTICE] "}
+
 var lstr = []string{
 	ColorBlue + "[DEBUG]" + ColorReset,
 	ColorBrightGreen + "[INFO]" + ColorReset,
@@ -55,6 +67,20 @@ func (lT LoggerType) toString() string {
 		return lstr[lT]
 	}
 	return "[UNKNOWN]"
+}
+
+func (lT LoggerType) name() string {
+	if lT >= LoggerDebug && lT <= LoggerNotice {
+		return lnames[lT]
+	}
+	return "unknown"
+}
+
+func (lT LoggerType) plain() string {
+	if lT >= LoggerDebug && lT <= LoggerNotice {
+		return pstr[lT]
+	}
+	return "[UNKNOWN] "
 }
 
 func (lT LoggerType) IsValid() bool {
@@ -74,6 +100,7 @@ type AllLog struct {
 	flog        *log.Logger
 	depth       int        // for debug only
 	tp          LoggerType // log type
+	format      Format
 	isStreaming bool
 	exitFn      func(int)
 	mu          sync.RWMutex // threading moment......
